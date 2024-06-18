@@ -12,7 +12,7 @@ __DEBUG__ = False
 
 if "--CMAKE_PREFIX_PATH" in sys.argv:
     index = sys.argv.index('--CMAKE_PREFIX_PATH')
-    __CMAKE_PREFIX_PATH__ = sys.argv[index+1]
+    __CMAKE_PREFIX_PATH__ = sys.argv[index + 1]
     sys.argv.remove("--CMAKE_PREFIX_PATH")
     sys.argv.remove(__CMAKE_PREFIX_PATH__)
 
@@ -39,8 +39,10 @@ class CMakeBuild(build_ext):
 
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
-        cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                      '-DPYTHON_EXECUTABLE=' + sys.executable]
+        cmake_args = [
+            '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
+            '-DPYTHON_EXECUTABLE=' + sys.executable,
+        ]
 
         if __CMAKE_PREFIX_PATH__ is not None:
             cmake_args.append('-DCMAKE_PREFIX_PATH=' + __CMAKE_PREFIX_PATH__)
@@ -50,16 +52,23 @@ class CMakeBuild(build_ext):
 
         if platform.system() == "Windows":
             cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
-            if sys.maxsize > 2**32:
+            if sys.maxsize > 2 ** 32:
                 cmake_args += ['-A', 'x64']
             build_args += ['--', '/m']
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
             build_args += ['--', '-j4']
 
+        # Add OpenMP flags
+        openmp_include_dir = subprocess.check_output(['brew', '--prefix', 'libomp']).decode('utf-8').strip() + '/include'
+        openmp_lib_dir = subprocess.check_output(['brew', '--prefix', 'libomp']).decode('utf-8').strip() + '/lib'
+
         env = os.environ.copy()
-        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
-                                                              self.distribution.get_version())
+        env['CC'] = '/usr/local/opt/llvm/bin/clang'
+        env['CXX'] = '/usr/local/opt/llvm/bin/clang++'
+        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\" -I{}'.format(env.get('CXXFLAGS', ''), self.distribution.get_version(), openmp_include_dir)
+        env['LDFLAGS'] = '{} -L{} -lomp'.format(env.get('LDFLAGS', ''), openmp_lib_dir)
+
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)

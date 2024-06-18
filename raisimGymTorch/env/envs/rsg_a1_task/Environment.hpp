@@ -649,7 +649,7 @@ namespace raisim
         com_vec(0) = 0.1 * com_vec(0);
         com_vec(1) = 0.05 * com_vec(1);
         com_vec(2) = 0.0;
-        a1_->getLinkCOM()[0] = com_vec;
+        a1_->getBodyCOM_B()[0] = com_vec;
         a1_->updateMassInfo();
         mass_params << mass_rand, com_vec(0), com_vec(1);
       }
@@ -1034,7 +1034,7 @@ namespace raisim
             continue;
           if (footIndex == contact.getlocalBodyIndex())
           {
-            auto impulse_i = (contact.getContactFrame().e() * contact.getImpulse()->e()).norm();
+            auto impulse_i = (contact.getContactFrame().e() * contact.getImpulse().e()).norm();
             if (impulse_i > 0)
             {
               grf[footIdx_i] += impulse_i;
